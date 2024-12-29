@@ -1,18 +1,33 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Play, Pause, Volume2, VolumeX, X } from 'lucide-react';
+import { notification } from 'antd';
 import './MusicPlayer.css';
 
-const MusicPlayer = ({ station, onClose }) => {
-  const [isPlaying, setIsPlaying] = useState(true);
+const MusicPlayer = ({ station, onClose, audioRef, isPlaying, setIsPlaying }) => {
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.src = station.url_resolved;
+      if (isPlaying) {
+        audioRef.current.play().catch(e => {
+          console.log(e);
+          notification.error({
+            message: 'Hata',
+            description: 'Müzik oynatılırken bir hata oluştu.',
+          });
+          setIsPlaying(false);
+        });
+      }
+    }
+  }, [station, audioRef, isPlaying]);
 
   const handleVolumeChange = (e) => {
     const value = parseFloat(e.target.value);
     setVolume(value);
-    const audio = document.querySelector('audio');
-    if (audio) {
-      audio.volume = value;
+    if (audioRef.current) {
+      audioRef.current.volume = value;
     }
     if (value === 0) {
       setIsMuted(true);
@@ -22,25 +37,23 @@ const MusicPlayer = ({ station, onClose }) => {
   };
 
   const toggleMute = () => {
-    const audio = document.querySelector('audio');
-    if (audio) {
+    if (audioRef.current) {
       if (isMuted) {
-        audio.volume = volume;
+        audioRef.current.volume = volume;
         setIsMuted(false);
       } else {
-        audio.volume = 0;
+        audioRef.current.volume = 0;
         setIsMuted(true);
       }
     }
   };
 
   const togglePlay = () => {
-    const audio = document.querySelector('audio');
-    if (audio) {
+    if (audioRef.current) {
       if (isPlaying) {
-        audio.pause();
+        audioRef.current.pause();
       } else {
-        audio.play();
+        audioRef.current.play();
       }
       setIsPlaying(!isPlaying);
     }
@@ -48,16 +61,18 @@ const MusicPlayer = ({ station, onClose }) => {
 
   return (
     <div className="music-player">
-      <audio
-        src={station.url_resolved}
-        autoPlay
-        onError={(e) => console.error('Audio error:', e)}
-      />
       <div className="player-content">
         <div className="station-info">
-          <div className="station-image">
+          <div className={`station-image ${isPlaying ? 'playing' : ''}`}>
             {station.favicon ? (
-              <img src={station.favicon} alt={station.name} />
+              <img 
+                src={station.favicon} 
+                alt={station.name}
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.parentElement.classList.add('default-image');
+                }}
+              />
             ) : (
               <div className="default-image">
                 <svg viewBox="0 0 24 24" width="32" height="32">
@@ -81,7 +96,7 @@ const MusicPlayer = ({ station, onClose }) => {
 
         <div className="player-controls">
           <button className="play-button" onClick={togglePlay}>
-            {isPlaying ? <Pause size={24} /> : <Play size={24} />}
+            {isPlaying ? <Pause size={48} /> : <Play size={48} />}
           </button>
 
           <div className="volume-control">
@@ -90,9 +105,9 @@ const MusicPlayer = ({ station, onClose }) => {
               onClick={toggleMute}
             >
               {isMuted || volume === 0 ? (
-                <VolumeX size={20} />
+                <VolumeX size={32} />
               ) : (
-                <Volume2 size={20} />
+                <Volume2 size={32} />
               )}
             </button>
             <input
@@ -107,7 +122,7 @@ const MusicPlayer = ({ station, onClose }) => {
           </div>
 
           <button className="close-button" onClick={onClose}>
-            <X size={20} />
+            <X size={32} />
           </button>
         </div>
       </div>

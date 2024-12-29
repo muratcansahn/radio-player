@@ -6,6 +6,7 @@ import MusicPlayer from './components/MusicPlayer';
 import StationList from './components/StationList';
 import { Button, Space, DatePicker, version, Tooltip } from 'antd';
 import ReactDOM from 'react-dom';
+import * as THREE from 'three';
 
 function App() {
   const [radioStations, setRadioStations] = useState([]);
@@ -13,6 +14,8 @@ function App() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
   const containerRef = useRef(null);
   const globeRef = useRef(null);
   const audioRef = useRef(null);
@@ -53,6 +56,10 @@ function App() {
 
   const handleStationSelect = useCallback(async (point) => {
     try {
+      // Arama sonuçlarını ve search bar'ı temizle
+      setSearchTerm('');
+      setSearchResults([]);
+
       // Aynı istasyona tıklanma kontrolü
       if (currentStation?.stationuuid === point.stationuuid) {
         if (audioRef.current) {
@@ -61,6 +68,8 @@ function App() {
         }
         setCurrentStation(null);
         setIsPlaying(false);
+        // Reset point colors
+        globeRef.current.pointColor(() => '#ffffff');
         return;
       }
 
@@ -72,19 +81,14 @@ function App() {
 
       // Yeni istasyonu ayarla
       setCurrentStation(point);
-      
-      // Yeni ses nesnesini hazırla ve çal
-      if (audioRef.current) {
-        audioRef.current.src = point.url_resolved;
-        try {
-          await audioRef.current.play();
-          setIsPlaying(true);
-        } catch (error) {
-          console.error('Çalma hatası:', error);
-          setIsPlaying(false);
-          setCurrentStation(null);
-        }
-      }
+      setIsPlaying(true);
+
+      // Update point colors
+      globeRef.current.pointColor((d) => d.stationuuid === point.stationuuid ? '#ff0000' : '#ffffff');
+   ///make selected point bigger and increase z index
+
+      globeRef.current.pointRadius((d) => d.stationuuid === point.stationuuid ? 0.7 : 0.5);
+      globeRef.current.pointAltitude((d) => d.stationuuid === point.stationuuid ? 0.05 : 0);
     } catch (error) {
       console.error('İstasyon seçme hatası:', error);
     }
@@ -101,14 +105,18 @@ function App() {
     const globe = Globe()
       .globeImageUrl('/earth-texture.jpg')
       .backgroundColor('rgba(0,0,0,0)')
-      .pointRadius(d => currentStation && d.stationuuid === currentStation.stationuuid ? 0.3 : 0.15)
-      .pointColor(d => currentStation && d.stationuuid === currentStation.stationuuid ? '#1ed760' : '#ffffff')
-      .pointsMerge(false)
+      .pointRadius(0.5)
+      .pointColor(() => '#ffffff')
       .pointAltitude(0.01)
       .pointsData(radioStations)
-      .pointsTransitionDuration(300)
       .pointLat(d => d.geo_lat)
-      .pointLng(d => d.geo_long);
+      .pointLng(d => d.geo_long)
+      .pointLabel(d => `
+        <div style="color: white; background: rgba(0,0,0,0.8); padding: 8px; border-radius: 4px; font-family: Arial;">
+          <div style="font-weight: bold;">${d.name}</div>
+          <div>${d.country}</div>
+        </div>
+      `);
 
     // Click event'ini ayrı ekle
     globe.onPointClick((point, event) => {
@@ -137,10 +145,51 @@ function App() {
     };
   }, [radioStations]);
 
-  const filteredStations = radioStations.filter(station =>
-    station.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    station.country.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleSearch = useCallback(async (term) => {
+    if (!term || !term.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const response = await fetch(
+        `https://de1.api.radio-browser.info/json/stations/byname/${encodeURIComponent(term.trim())}?limit=10&order=clickcount&reverse=true`
+      );
+      
+      if (!response.ok) {
+        throw new Error('Arama yapılırken bir hata oluştu');
+      }
+
+      const data = await response.json();
+      const validStations = data.filter(station => 
+        station.name && 
+        station.url_resolved && 
+        station.stationuuid
+      );
+      
+      setSearchResults(validStations);
+    } catch (error) {
+      console.error('Arama hatası:', error);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  }, []);
+
+  // Debounce search
+  useEffect(() => {
+    if (!searchTerm) {
+      setSearchResults([]);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      handleSearch(searchTerm);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm, handleSearch]);
 
   const handleClosePlayer = () => {
     if (audioRef.current) {
@@ -161,23 +210,25 @@ function App() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
+            {isSearching && <span className="loading">Aranıyor...</span>}
           </div>
         </div>
-  
 
         <div className="globe-container" ref={containerRef}></div>
-
 
         {currentStation && (
           <MusicPlayer
             station={currentStation}
             onClose={handleClosePlayer}
+            audioRef={audioRef}
+            isPlaying={isPlaying}
+            setIsPlaying={setIsPlaying}
           />
         )}
 
-        {searchTerm && (
+        {searchTerm && searchResults.length > 0 && (
           <StationList
-            stations={filteredStations}
+            stations={searchResults}
             onStationSelect={handleStationSelect}
             currentStation={currentStation}
           />

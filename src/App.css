@@ -52,46 +52,52 @@ html, body {
 }
 
 .search-container {
-  padding: 20px;
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.search-form {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
   display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: 10px;
-  max-width: 600px;
-  margin: 0 auto;
+  width: 300px;
 }
 
-.search-input {
-  flex: 1;
-  padding: 10px 15px;
-  border: none;
-  border-radius: 25px;
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
-  font-size: 16px;
-}
-
-.search-input::placeholder {
-  color: rgba(255, 255, 255, 0.5);
-}
-
-.search-button {
-  background: none;
-  border: none;
-  color: white;
-  cursor: pointer;
-  padding: 10px;
-  border-radius: 50%;
+.search-box {
   display: flex;
   align-items: center;
-  justify-content: center;
-  transition: background-color 0.3s;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 8px;
+  padding: 8px 16px;
+  gap: 8px;
+  width: 100%;
+  position: relative;
+  min-width: 0;
 }
 
-.search-button:hover {
-  background: rgba(255, 255, 255, 0.1);
+.search-box input {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 16px;
+  width: 100%;
+  outline: none;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.search-box input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.loading {
+  position: absolute;
+  right: 16px;
+  color: #1ed760;
+  font-size: 14px;
 }
 
 .logo {
@@ -213,15 +219,6 @@ canvas {
   margin: 5px 0;
   font-size: 1.1rem;
   color: #fff;
-}
-
-/* Arama bölümü */
-.search-container {
-  position: absolute;
-  top: 20px;
-  left: 20px;
-  width: 300px;
-  z-index: 1000;
 }
 
 /* İstasyon listesi */
